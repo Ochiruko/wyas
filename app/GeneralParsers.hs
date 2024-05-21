@@ -1,4 +1,4 @@
-module StringParsers where
+module GeneralParsers where
 
 import Text.ParserCombinators.Parsec hiding (spaces, hexDigit)
 
