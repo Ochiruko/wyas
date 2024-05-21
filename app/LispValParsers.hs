@@ -15,18 +15,6 @@ data LispVal = Atom String
              | Bool Bool
              deriving (Eq, Show)
 
-data LispNum = Integer Integer
-             | Rational Rational
-             | Real Double
-             | Complex (Complex Double)
-             deriving (Eq, Show)
-
-parseNumber :: Parser LispVal
-parseNumber =  parseComplex
-           <|> parseReal 
-           <|> parseRational 
-           <|> parseInteger
-
 parseString :: Parser LispVal
 parseString =
   do char '"'
