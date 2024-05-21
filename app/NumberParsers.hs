@@ -1,3 +1,25 @@
+module NumberParsers where
+
+import Data.Complex
+import Data.Ratio
+
+data LispNum = Complex (Complex Double)
+             | Real Double
+             | Rational Integer
+             | Integer Integer
+
+parseNum :: Parser LispNum
+parseNum = 
+  do radix <- parseRadix
+     let ops = [ parseComplex
+               , parseReal
+               , parseRational
+               , parseInteger ]
+     choice (ops <*> [radix])
+
+parseComplex :: Parser LispNum
+
+{-
 module StringParsers where
 
 import Text.ParserCombinators.Parsec hiding (spaces, hexDigit)
@@ -34,3 +56,4 @@ parseComplex =
      icmp <- parseURational <|> parseUReal <|> parseUInteger
      char 'i'
      -- not done
+-}
