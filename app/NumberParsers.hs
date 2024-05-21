@@ -17,43 +17,13 @@ parseNum =
                , parseInteger ]
      choice (ops <*> [radix])
 
-parseComplex :: Parser LispNum
-
-{-
-module StringParsers where
-
-import Text.ParserCombinators.Parsec hiding (spaces, hexDigit)
-import Data.Ratio
-import Complex
-
-parseUInteger :: Parser Integer
-parseUInteger =  parseBin
-             <|> parseOct
-             <|> parseHex
-             <|> parseDec
-
-parseURational :: Parser Rational
-parseURational =
-  do num <- parseUInteger
-     char '/'
-     den <- parseUInteger
-     return num % den
-
-parseUReal :: Parser Double
-parseUReal = 
-  do string "#d" <|> return ()
-     pre  <- many digit
-     char '.'
-     post <- many digit
-     case (pre ++ '.' ++ post) of
-       dec@(x:y:_) -> read dec
-       _ -> fail "'.' is not a valid Float."
-
-parseComplex :: Parser (Complex Double)
-parseComplex = 
-  do rcmp <- parseRational <|> parseReal <|> parseInteger
-     isgn <- oneOf "+-"
-     icmp <- parseURational <|> parseUReal <|> parseUInteger
-     char 'i'
-     -- not done
--}
+parseComplex :: Integer -> Parser LispNum
+parseComplex r =
+     -- parse a + bi
+     do rcmp <- parseReal <|> parseRational <|> parseInteger
+        sgn  <- oneOf "+-"
+        imcp <- parseUReal <|> parseURational <|> parseUInteger
+        return . Complex $ case sgn of
+          '+' -> toDouble rcmp :+ toDouble imcp
+          '-' -> toDouble rcmp :+ (-1 * toDouble rcmp)
+ <|> do 
