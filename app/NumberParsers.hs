@@ -32,3 +32,10 @@ parseComplex r =
         char 'i'
         return . Complex $ icmp
 
+toDouble :: LispNum -> Double
+toDouble x = case x of
+  Complex (a:+_) -> a
+  Real n -> n
+  Rational (n%d) -> n/d
+  Integer n -> fromInteger n
+
