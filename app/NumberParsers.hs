@@ -40,7 +40,7 @@ toDouble :: LispNum -> Double
 toDouble x = case x of
   Complex (a:+_) -> a
   Real n -> n
-  Rational (n:%d) -> n/d
+  Rational rat -> numerator rat / denominator rat
   Integer n -> fromInteger n
 
 parseReal :: Integer -> Parser LispNum
@@ -76,7 +76,7 @@ parseURational r =
   do num <- parseUInteger r
      char '/'
      den <- parseUInteger r
-     return . Rational $ num :% den
+     return . Rational $ num % den
 
 parseInteger :: Integer -> Parser LispNum
 parseInteger r =
