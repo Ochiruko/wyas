@@ -48,13 +48,13 @@ parseComplex r =
      -- parse [+|-|empty]bi
  <|> do icmp <- choice . fmap try $ [parseReal, parseRational, parseInteger] <*> [r]
         char 'i'
-        return . Complex $ icmp
+        return . Complex $ 0 :+ toDouble icmp
 
 toDouble :: LispNum -> Double
 toDouble x = case x of
   Complex (a:+_) -> a
   Real n -> n
-  Rational rat -> numerator rat / denominator rat
+  Rational rat -> (fromInteger . numerator) rat / (fromInteger . denominator) rat
   Integer n -> fromInteger n
 
 parseReal :: Integer -> Parser LispNum
@@ -70,9 +70,10 @@ parseUReal r =
   do whl <- many digit
      char '.'
      dec <- many digit
-     let num = read $ whl ++ "." ++ dec
-     case (length num, r) of
-       (1, _)  -> fail "parsing error: '.' is an invalid UReal"
+     let num :: Double
+         num = read $ whl ++ "." ++ dec
+     case (length whl + length dec, r) of
+       (0, _)  -> fail "parsing error: '.' is an invalid UReal"
        (_, 10) -> return . Real $ num
        (_, _)  -> fail "parsing error: decimal radices can only be 10"
 
@@ -86,9 +87,9 @@ parseRational r =
 
 parseURational :: Integer -> Parser LispNum
 parseURational r =
-  do num <- parseUInteger r
+  do (Integer num) <- parseUInteger r
      char '/'
-     den <- parseUInteger r
+     (Integer den) <- parseUInteger r
      return . Rational $ num % den
 
 parseInteger :: Integer -> Parser LispNum
@@ -111,7 +112,7 @@ parseBinary :: Parser LispNum
 parseBinary = 
   do bin <- many $ oneOf "01"
      return . Integer . foldl f 0 $ bin
-     where f acc bit = acc * 2 + (fromInteger . digitToInt) bit
+     where f acc bit = acc * 2 + (toInteger . digitToInt) bit
 
 parseOctal :: Parser LispNum
 parseOctal =
@@ -122,7 +123,7 @@ parseOctal =
 parseDecimal :: Parser LispNum
 parseDecimal =
   do dec <- many digit
-     return . Integer . toInteger . digitToInt $ dec
+     return . Integer . read $ dec
 
 parseHexadecimal :: Parser LispNum
 parseHexadecimal = 
@@ -131,4 +132,4 @@ parseHexadecimal =
      where f acc hexit = acc * 16 + readHexit hexit
            readHexit h = case h of
              d | isDigit d -> toInteger . digitToInt $ d
-             l | isLower l -> toEnum l - toEnum 'a' + 1
+             l | isLower l -> toInteger $ fromEnum l - fromEnum 'a' + 1
