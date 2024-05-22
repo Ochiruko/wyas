@@ -1,9 +1,10 @@
 module NumberParsers where
 
-import Text.ParserCombinators.Parsec hiding (spaces)
+import Text.ParserCombinators.Parsec (Parser)
+import Text.Parsec
 import Data.Complex
 import Data.Ratio
-import Data.Char (isDigit)
+import Data.Char (isDigit, isLower, digitToInt)
 
 data LispNum = Complex (Complex Double)
              | Real Double
@@ -14,15 +15,17 @@ data LispNum = Complex (Complex Double)
 parseNum :: Parser LispNum
 parseNum = 
   do radix <- parseRadix
-     let ops = fmap try [ parseComplex
-                        , parseReal
-                        , parseRational
-                        , parseInteger ]
-     choice (ops <*> [radix])
+     let ops = fmap try . (<*> [radix]) $
+                 [ parseComplex
+                 , parseReal
+                 , parseRational
+                 , parseInteger ]
+     choice ops
 
 parseRadix :: Parser Integer
 parseRadix = try parseVerboseRadix <|> return 10
-  where parseVerboseRadix =
+  where parseVerboseRadix :: Parser Integer
+        parseVerboseRadix =
           do char '#'
              r <- oneOf "bodx"
              return $ case r of
@@ -30,8 +33,6 @@ parseRadix = try parseVerboseRadix <|> return 10
                'o' -> 8
                'd' -> 10
                'x' -> 16
-               _   -> fail "parsing error: invalid radix"
-     
 
 -- "a+bi" | "bi" ==> a :+ b
 parseComplex :: Integer -> Parser LispNum
@@ -42,7 +43,7 @@ parseComplex r =
         icmp <- choice . fmap try $ [parseUReal, parseURational, parseUInteger] <*> [r]
         char 'i'
         return . Complex $ case sgn of
-          '+' -> toDouble rcmp :+ toDouble imcp
+          '+' -> toDouble rcmp :+ toDouble icmp
           '-' -> toDouble rcmp :+ negate (toDouble rcmp)
      -- parse [+|-|empty]bi
  <|> do icmp <- choice . fmap try $ [parseReal, parseRational, parseInteger] <*> [r]
@@ -63,7 +64,6 @@ parseReal r =
      return . Real $ case sgn of
        '+' -> num
        '-' -> negate num
-       _ -> fail "parsing error: sign not parsed properly"
 
 parseUReal :: Integer -> Parser LispNum
 parseUReal r = 
@@ -71,9 +71,9 @@ parseUReal r =
      char '.'
      dec <- many digit
      let num = read $ whl ++ "." ++ dec
-     return . Real $ case (length num, r) of
+     case (length num, r) of
        (1, _)  -> fail "parsing error: '.' is an invalid UReal"
-       (_, 10) -> num
+       (_, 10) -> return . Real $ num
        (_, _)  -> fail "parsing error: decimal radices can only be 10"
 
 parseRational  :: Integer -> Parser LispNum
@@ -111,18 +111,18 @@ parseBinary :: Parser LispNum
 parseBinary = 
   do bin <- many $ oneOf "01"
      return . Integer . foldl f 0 $ bin
-     where f acc bit = acc * 2 + read bit
+     where f acc bit = acc * 2 + (fromInteger . digitToInt) bit
 
 parseOctal :: Parser LispNum
 parseOctal =
   do oct <- many $ oneOf "01234567"
      return . Integer . foldl f 0 $ oct
-     where f acc octit = acc * 8 + read octit
+     where f acc octit = acc * 8 + (toInteger . digitToInt) octit
 
 parseDecimal :: Parser LispNum
 parseDecimal =
   do dec <- many digit
-     return . Integer . read $ dec
+     return . Integer . toInteger . digitToInt $ dec
 
 parseHexadecimal :: Parser LispNum
 parseHexadecimal = 
@@ -130,5 +130,5 @@ parseHexadecimal =
      return . Integer . foldl f 0 $ hex
      where f acc hexit = acc * 16 + readHexit hexit
            readHexit h = case h of
-             d | isDigit d -> read d
-             l -> toEnum l - toEnum 'a' + 1
+             d | isDigit d -> toInteger . digitToInt $ d
+             l | isLower l -> toEnum l - toEnum 'a' + 1
