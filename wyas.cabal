@@ -18,9 +18,9 @@ common warnings
 executable wyas
     import:           warnings
     main-is:          Main.hs
-    other-modules:    LispValParsers
-                      NumberParsers
-                      StringParsers
+    other-modules:    LispValParsers,
+                      NumberParsers,
+                      GeneralParsers
     -- other-extensions:
     build-depends:    base,
                       parsec
