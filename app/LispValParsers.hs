@@ -1,6 +1,6 @@
 module LispValParsers where
 
-import Text.ParserCombinators.Parsec hiding spaces
+import Text.ParserCombinators.Parsec hiding (spaces)
 import System.Environment
 import Control.Monad
 import GeneralParsers
