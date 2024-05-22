@@ -1,9 +1,9 @@
-module RefactoredMain where
+module LispValParsers where
 
-import Text.ParserCombinators.Parsec hiding (spaces, hexDigit)
+import Text.ParserCombinators.Parsec hiding spaces
 import System.Environment
 import Control.Monad
-import StringParsers
+import GeneralParsers
 import NumberParsers
 
 data LispVal = Atom String
