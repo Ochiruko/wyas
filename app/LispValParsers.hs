@@ -25,9 +25,9 @@ parseString =
 parseChar :: Parser LispVal
 parseChar = 
   do string "#\\"
-     value <- string "newline"
-          <|> string "space"
-          <|> anyChar >>= (x -> return [x])
+     value <- try $ string "newline"
+          <|> try $ string "space"
+          <|> anyChar >>= (\x -> return [x])
      return . Char $ case value of
        "space" -> ' '
        "newline" -> '\n'
