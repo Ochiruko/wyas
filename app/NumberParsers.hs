@@ -20,6 +20,19 @@ parseNum =
                         , parseInteger ]
      choice (ops <*> [radix])
 
+parseRadix :: Parser Integer
+parseRadix = try parseVerboseRadix <|> return 10
+  where parseVerboseRadix =
+          do char '#'
+             r <- oneOf "bodx"
+             return $ case r of
+               'b' -> 2
+               'o' -> 8
+               'd' -> 10
+               'x' -> 16
+               _   -> fail "parsing error: invalid radix"
+     
+
 -- "a+bi" | "bi" ==> a :+ b
 parseComplex :: Integer -> Parser LispNum
 parseComplex r =
@@ -92,7 +105,7 @@ parseUInteger r = case r of
   8  -> parseOctal
   10 -> parseDecimal
   16 -> parseHexadecimal
-  _  -> fail "invalid radix"
+  _  -> fail "parsing error: invalid radix"
 
 parseBinary :: Parser LispNum
 parseBinary = 
