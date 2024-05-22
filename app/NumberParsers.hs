@@ -1,5 +1,6 @@
 module NumberParsers where
 
+import Text.ParserCombinators.Parsec hiding (spaces)
 import Data.Complex
 import Data.Ratio
 import Data.Char (isDigit)
