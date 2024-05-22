@@ -6,11 +6,15 @@ import Control.Monad
 import GeneralParsers
 import NumberParsers
 
+-- LispVal's parsers are all left factored *except* for those that employ LispNum parsers,
+-- because NumberParsers is full of try expressions.
+
 data LispVal = Atom String
              | List [LispVal]
              | DottedList [LispVal] LispVal
              | Number LispNum
              | String String
+             | Char Char
              | Character Char
              | Bool Bool
              deriving (Eq, Show)
@@ -22,16 +26,17 @@ parseString =
      char '"'
      return . String $ str
 
+-- parses the first char and then the rest
+-- this left factors the grammar and reduces the worst case complexity
 parseChar :: Parser LispVal
 parseChar = 
   do string "#\\"
-     value <- try $ string "newline"
-          <|> try $ string "space"
-          <|> anyChar >>= (\x -> return [x])
-     return . Char $ case value of
-       "space" -> ' '
-       "newline" -> '\n'
-       _ -> head value
+     head <- anyChar
+     rest <- string "ewline" <|> string "pace" <|> return ""
+     return . Char $ case rest of
+       "pace" -> ' '
+       "ewline" -> '\n'
+       _ -> head
 
 parseAtom :: Parser LispVal
 parseAtom =
@@ -43,3 +48,31 @@ parseAtom =
        "#f" -> Bool False
        _    -> Atom atom
 
+-- S = ' '+, E = expr, L = list
+-- L ==> [E S]* E
+parseList :: Parser LispVal
+parseList = liftM List $ sepBy parseExpr spaces
+
+-- S = ' '+, E = expr, DL = dotted list
+-- DL => E S . S E
+parseDottedList :: Parser LispVal
+parseDottedList =
+  do head <- endBy parseExpr spaces
+     tail <- char '.' >> spaces >> parseExpr
+     return $ DottedList head tail
+
+-- turns 'x -> (quote x)
+parseQuoted :: Parser LispVal
+parseQuoted =
+  do char '\''
+  x <- parseExpr
+  return $ List [Atom "quote", x]
+
+parseExpr :: Parser LispVal
+parseExpr =  parseAtom
+         <|> parseString
+         <|> parseExpr 
+         <|> do char '('
+                x <- try parseList <|> parseDottedList
+                char ')'
+                return x
