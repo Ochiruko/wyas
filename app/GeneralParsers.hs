@@ -18,3 +18,4 @@ spaces = skipMany1 space
 
 symbol :: Parser Char
 symbol = oneOf "!#$%&|*+-/:<=>?@^__~"
+
