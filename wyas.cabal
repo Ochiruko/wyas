@@ -23,6 +23,7 @@ executable wyas
                       GeneralParsers
     -- other-extensions:
     build-depends:    base,
-                      parsec
+                      parsec,
+                      hspec
     hs-source-dirs:   app
     default-language: Haskell2010

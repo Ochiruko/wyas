@@ -50,7 +50,25 @@ parseAtom =
 
 parseList :: Parser LispVal
 parseList =
-  do undefined
+  do char '('
+     expr <- parseExpr
+     (rest, dot) <- parseRest
+     return $ case dot of
+       Just x  -> DottedList (expr:rest) x
+       Nothing -> List (expr:rest)
+  where 
+    parseRest =  
+      do char ')'
+         return ([], Nothing)
+      <|> (spaces >> (parseDottedListEnd <|> parseRecList))
+    parseDottedListEnd = do char '.'
+                            spaces
+                            expr <- parseExpr
+                            return ([], Just expr)
+    parseRecList = do expr <- parseExpr
+                      (rest, dot) <- parseRest
+                      return (expr:rest, dot)
+
 
 parseQuoted :: Parser LispVal
 parseQuoted =
@@ -62,7 +80,4 @@ parseExpr :: Parser LispVal
 parseExpr =  parseAtom
          <|> parseString
          <|> parseExpr 
-         <|> do char '('
-                x <- parseList
-                char ')'
-                return x
+         <|> parseList

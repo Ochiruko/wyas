@@ -3,7 +3,6 @@ module Tests where
 import Text.ParserCombinators.Parsec
 import Text.Parsec
 import Test.Hspec
-import Test.QuickCheck
 import Data.Ratio
 
 import LispValParsers
