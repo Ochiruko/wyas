@@ -50,28 +50,8 @@ parseAtom =
 
 parseList :: Parser LispVal
 parseList =
-  do shared  <- sepBy parseExpr spaces
-     dotExpr <- do { spaces; char '.'; spaces; x <- parseExpr; return (Just x) }
-            <|> return Nothing
-     return $ case dotExpr of
-       Nothing -> List shared
-       Just x -> DottedList shared x
+  do undefined
 
--- S = ' '+, E = expr, L = list
--- L ==> [E S]* E
-
--- parseList :: Parser LispVal
--- parseList = liftM List $ sepBy parseExpr spaces
-
--- S = ' '+, E = expr, DL = dotted list
--- DL => E S . S E
--- parseDottedList :: Parser LispVal
--- parseDottedList =
---   do head <- endBy parseExpr spaces
---     tail <- char '.' >> spaces >> parseExpr
---     return $ DottedList head tail
-
--- turns 'x -> (quote x)
 parseQuoted :: Parser LispVal
 parseQuoted =
   do char '\''

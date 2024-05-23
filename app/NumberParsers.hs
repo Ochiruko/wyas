@@ -132,4 +132,4 @@ parseHexadecimal =
      where f acc hexit = acc * 16 + readHexit hexit
            readHexit h = case h of
              d | isDigit d -> toInteger . digitToInt $ d
-             l | isLower l -> toInteger $ fromEnum l - fromEnum 'a' + 1
+             l | isLower l -> toInteger $ fromEnum l - fromEnum 'a' + 10
