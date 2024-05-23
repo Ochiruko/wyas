@@ -71,7 +71,7 @@ parseUReal r =
      char '.'
      dec <- many digit
      let num :: Double
-         num = read $ whl ++ "." ++ dec
+         num = read $ "0" ++ whl ++ "." ++ dec ++ "0"
      case (length whl + length dec, r) of
        (0, _)  -> fail "parsing error: '.' is an invalid UReal"
        (_, 10) -> return . Real $ num

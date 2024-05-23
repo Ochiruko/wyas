@@ -28,7 +28,7 @@ parseExpr =  parseAtom
 
 parseNumber :: Parser LispVal
 parseNumber = do num <- parseNum
-                 return . Number $ Num
+                 return . Number $ num
 
 parseString :: Parser LispVal
 parseString =
