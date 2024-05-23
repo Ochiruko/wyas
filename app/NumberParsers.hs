@@ -110,24 +110,24 @@ parseUInteger r = case r of
 
 parseBinary :: Parser LispNum
 parseBinary = 
-  do bin <- many $ oneOf "01"
+  do bin <- many1 $ oneOf "01"
      return . Integer . foldl f 0 $ bin
      where f acc bit = acc * 2 + (toInteger . digitToInt) bit
 
 parseOctal :: Parser LispNum
 parseOctal =
-  do oct <- many $ oneOf "01234567"
+  do oct <- many1 $ oneOf "01234567"
      return . Integer . foldl f 0 $ oct
      where f acc octit = acc * 8 + (toInteger . digitToInt) octit
 
 parseDecimal :: Parser LispNum
 parseDecimal =
-  do dec <- many digit
+  do dec <- many1 digit
      return . Integer . read $ dec
 
 parseHexadecimal :: Parser LispNum
 parseHexadecimal = 
-  do hex <- many $ digit <|> oneOf "abcdef"
+  do hex <- many1 $ digit <|> oneOf "abcdef"
      return . Integer . foldl f 0 $ hex
      where f acc hexit = acc * 16 + readHexit hexit
            readHexit h = case h of
