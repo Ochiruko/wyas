@@ -15,9 +15,20 @@ data LispVal = Atom String
              | Number LispNum
              | String String
              | Char Char
-             | Character Char
              | Bool Bool
              deriving (Eq, Show)
+
+parseExpr :: Parser LispVal
+parseExpr =  parseAtom
+         <|> parseString
+         <|> parseChar
+         <|> parseNumber
+         <|> parseQuoted
+         <|> parseList
+
+parseNumber :: Parser LispVal
+parseNumber = do num <- parseNum
+                 return . Number $ Num
 
 parseString :: Parser LispVal
 parseString =
@@ -28,6 +39,7 @@ parseString =
 
 -- parses the first char and then the rest
 -- this left factors the grammar and reduces the worst case complexity
+-- LL(1)
 parseChar :: Parser LispVal
 parseChar = 
   do string "#\\"
@@ -38,6 +50,7 @@ parseChar =
        "ewline" -> '\n'
        _ -> head
 
+-- LL(1)
 parseAtom :: Parser LispVal
 parseAtom =
   do first <- letter <|> symbol
@@ -75,9 +88,3 @@ parseQuoted =
   do char '\''
      x <- parseExpr
      return $ List [Atom "quote", x]
-
-parseExpr :: Parser LispVal
-parseExpr =  parseAtom
-         <|> parseString
-         <|> parseExpr 
-         <|> parseList
