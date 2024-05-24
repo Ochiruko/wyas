@@ -1,6 +1,7 @@
 module LispValParsers where
 
 import Text.ParserCombinators.Parsec hiding (spaces)
+import Data.Array
 import System.Environment
 import Control.Monad
 import GeneralParsers
@@ -12,6 +13,7 @@ import NumberParsers
 data LispVal = Atom String
              | List [LispVal]
              | DottedList [LispVal] LispVal
+             | Vector (Array Integer LispVal)
              | Number LispNum
              | String String
              | Char Char
@@ -25,11 +27,14 @@ parseExpr =  parseAtom
          <|> parseNumber
          <|> parseQuoted
          <|> parseList
+         <|> parseVector
 
+-- | Parses numbers according to the R5RS specification.
 parseNumber :: Parser LispVal
 parseNumber = do num <- parseNum
                  return . Number $ num
 
+-- | Parses strings "string", permitting escape characters and escaped quotes.
 parseString :: Parser LispVal
 parseString =
   do char '"'
@@ -37,9 +42,9 @@ parseString =
      char '"'
      return . String $ str
 
--- parses the first char and then the rest
--- this left factors the grammar and reduces the worst case complexity
--- LL(1)
+-- | parses the first char and then the rest
+-- | this left factors the grammar and reduces the worst case complexity
+-- | LL(1)
 parseChar :: Parser LispVal
 parseChar = 
   do string "#\\"
@@ -82,6 +87,17 @@ parseList =
                       (rest, dot) <- parseRest
                       return (expr:rest, dot)
 
+parseVector :: Parser LispVal
+parseVector = do char '#'
+                 List listRep <- parseList
+                 let vecRep = listArray (0, toInteger $ length listRep - 1) listRep
+                 return . Vector $ vecRep
+
+parseQuasiquoted :: Parser LispVal
+parseQuasiquoted =
+  do char '`'
+     x <- parseExpr
+     return $ List [Atom "quasiquote", x]
 
 parseQuoted :: Parser LispVal
 parseQuoted =
