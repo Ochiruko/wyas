@@ -33,7 +33,7 @@ parseExpr =
 -- | Parses numbers according to the R5RS specification.
 parseNumber :: Parser LispVal
 parseNumber = do
-  num <- parseNum
+  num <- parseLispNum
   return . Number $ num
 
 -- | Parses strings "string", permitting escape characters and escaped quotes.

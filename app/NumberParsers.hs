@@ -13,8 +13,8 @@ data LispNum
   | Integer Integer
   deriving (Eq, Show)
 
-parseNum :: Parser LispNum
-parseNum = do
+parseLispNum :: Parser LispNum
+parseLispNum = do
   radix <- parseRadix
   let ops =
         fmap try . (<*> [radix])
