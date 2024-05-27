@@ -12,12 +12,13 @@ import NumberParsers
 runTests :: IO ()
 runTests =
   hspec $ do
-    describe "parseNum" $ do
+    describe "parseLispNum" $ do
       it "parses all valid scheme numbers" $ do
-        parse parseNum "lisp" "#x029f3" `shouldBe` Right (Integer 10739)
-        parse parseNum "lisp" "23425." `shouldBe` Right (Real 23425.0)
-        parse parseNum "lisp" "23425" `shouldBe` Right (Integer 23425)
-        parse parseNum "lisp" "234/25" `shouldBe` Right (Rational (234 % 25))
+        parse parseLispNum "lisp" "#x029f3" `shouldBe` Right (Integer 10739)
+        parse parseLispNum "lisp" "23425." `shouldBe` Right (Real 23425.0)
+        parse parseLispNum "lisp" "23425" `shouldBe` Right (Integer 23425)
+        parse parseLispNum "lisp" "234/25"
+          `shouldBe` Right (Rational (234 % 25))
     describe "parseExpr" $ do
       it "parses all valid scheme expressions" $ do
         parse parseExpr "lisp" "(a test)"

@@ -1,8 +1,8 @@
 module Main where
 
-import Tests
 import Evaluators
+import Tests
 import Text.Parsec
 
 main :: IO ()
-main = getLine >>= (putString . readExpr)
+main = getLine >>= print . eval . readExpr

@@ -19,24 +19,26 @@ data LispVal
   | String String
   | Char Char
   | Bool Bool
-  deriving Eq
+  deriving (Eq)
 
 instance Show LispVal where
   show = showVal
 
 showVal :: LispVal -> String
-showVal v = case v of
-  String contents -> "\"" ++ contents ++ "\""
-  Char ' ' -> "#\\space"
-  Char '\n' -> "#\\newline"
-  Char c -> "#\\" ++ show c
-  Atom name -> name
-  Number contents -> show contents
-  Bool True -> "#t"
-  Bool False -> "#f"
-  List contents -> "(" ++ unwordsList contents ++ ")"
-  DottedList head tail -> "(" ++ unwordsList head ++ " . " ++ showVal tail ++ ")"
-  Vector contents -> "#" ++ show (List $ elems contents)
+showVal v =
+  case v of
+    String contents -> "\"" ++ contents ++ "\""
+    Char ' ' -> "#\\space"
+    Char '\n' -> "#\\newline"
+    Char c -> "#\\" ++ show c
+    Atom name -> name
+    Number contents -> show contents
+    Bool True -> "#t"
+    Bool False -> "#f"
+    List contents -> "(" ++ unwordsList contents ++ ")"
+    DottedList head tail ->
+      "(" ++ unwordsList head ++ " . " ++ showVal tail ++ ")"
+    Vector contents -> "#" ++ show (List $ elems contents)
   where
     unwordsList = unwords . map showVal
 
