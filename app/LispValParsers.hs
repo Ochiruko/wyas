@@ -1,9 +1,14 @@
-module LispValParsers where
+module LispValParsers
+  ( module Data.Array
+  , module NumberParsers
+  , module LispValParsers
+  , module Text.Parsec
+  ) where
 
 import Control.Monad
 import Data.Array
-import System.Environment
-import Text.ParserCombinators.Parsec hiding (spaces)
+import Text.Parsec hiding (spaces)
+import Text.ParserCombinators.Parsec (Parser(..))
 
 import GeneralParsers
 import NumberParsers
@@ -36,8 +41,7 @@ showVal v =
     Bool True -> "#t"
     Bool False -> "#f"
     List contents -> "(" ++ unwordsList contents ++ ")"
-    DottedList head tail ->
-      "(" ++ unwordsList head ++ " . " ++ showVal tail ++ ")"
+    DottedList head tail -> "(" ++ unwordsList head ++ " . " ++ showVal tail ++ ")"
     Vector contents -> "#" ++ show (List $ elems contents)
   where
     unwordsList = unwords . map showVal

@@ -1,10 +1,17 @@
-module NumberParsers where
+module NumberParsers 
+  ( LispNum (..)
+  , parseLispNum
+  , module Data.Complex
+  , module Data.Ratio )
+  where
 
 import Data.Char (digitToInt, isDigit, isLower)
 import Data.Complex
 import Data.Ratio
 import Text.Parsec
 import Text.ParserCombinators.Parsec (Parser)
+
+-- prioritizes readability over efficiency, hence the backtracking (try)
 
 data LispNum
   = Complex (Complex Double)
@@ -35,10 +42,8 @@ parseRadix = try parseVerboseRadix <|> return 10
             'd' -> 10
             'x' -> 16
 
--- "a+bi" | "bi" ==> a :+ b
 parseComplex :: Integer -> Parser LispNum
 parseComplex r
-     -- parse a+bi
  = do
   rcmp <- choice . fmap try $ [parseReal, parseRational, parseInteger] <*> [r]
   sgn <- oneOf "+-"
@@ -49,7 +54,6 @@ parseComplex r
     $ case sgn of
         '+' -> toDouble rcmp :+ toDouble icmp
         '-' -> toDouble rcmp :+ negate (toDouble rcmp)
-     -- parse [+|-|empty]bi
  <|> do
   icmp <- choice . fmap try $ [parseReal, parseRational, parseInteger] <*> [r]
   char 'i'

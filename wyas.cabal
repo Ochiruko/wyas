@@ -20,7 +20,10 @@ executable wyas
     main-is:          Main.hs
     other-modules:    LispValParsers,
                       NumberParsers,
-                      GeneralParsers
+                      GeneralParsers,
+                      Primitives,
+                      Evaluators,
+                      Tests
     -- other-extensions:
     build-depends:    base,
                       parsec,
