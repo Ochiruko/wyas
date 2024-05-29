@@ -28,6 +28,7 @@ executable wyas
     build-depends:    base,
                       parsec,
                       hspec,
-                      array
+                      array,
+                      mtl
     hs-source-dirs:   app
     default-language: Haskell2010

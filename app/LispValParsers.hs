@@ -1,50 +1,17 @@
 module LispValParsers
-  ( module Data.Array
-  , module NumberParsers
-  , module LispValParsers
-  , module Text.Parsec
+  ( module NumberParsers
+  , module Datatypes
+  , Parser
+  , parse
+  , parseExpr
   ) where
-
-import Control.Monad
-import Data.Array
-import Text.Parsec hiding (spaces)
-import Text.ParserCombinators.Parsec (Parser(..))
 
 import GeneralParsers
 import NumberParsers
+import Datatypes
 
 -- LispVal's parsers are all left factored *except* for those that employ LispNum parsers,
 -- because NumberParsers is full of try expressions.
-data LispVal
-  = Atom String
-  | List [LispVal]
-  | DottedList [LispVal] LispVal
-  | Vector (Array Integer LispVal)
-  | Number LispNum
-  | String String
-  | Char Char
-  | Bool Bool
-  deriving (Eq)
-
-instance Show LispVal where
-  show = showVal
-
-showVal :: LispVal -> String
-showVal v =
-  case v of
-    String contents -> "\"" ++ contents ++ "\""
-    Char ' ' -> "#\\space"
-    Char '\n' -> "#\\newline"
-    Char c -> "#\\" ++ show c
-    Atom name -> name
-    Number contents -> show contents
-    Bool True -> "#t"
-    Bool False -> "#f"
-    List contents -> "(" ++ unwordsList contents ++ ")"
-    DottedList head tail -> "(" ++ unwordsList head ++ " . " ++ showVal tail ++ ")"
-    Vector contents -> "#" ++ show (List $ elems contents)
-  where
-    unwordsList = unwords . map showVal
 
 parseExpr :: Parser LispVal
 parseExpr =

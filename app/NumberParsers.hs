@@ -1,36 +1,14 @@
 module NumberParsers 
-  ( LispNum (..)
+  ( module Datatypes
   , parseLispNum
-  , module Data.Complex
-  , module Data.Ratio )
+  )
   where
 
 import Data.Char (digitToInt, isDigit, isLower)
-import Data.Complex
-import Data.Ratio
-import Text.Parsec
-import Text.ParserCombinators.Parsec (Parser)
+
+import Datatypes 
 
 -- prioritizes readability over efficiency, hence the backtracking (try)
-
-data LispNum
-  = Complex (Complex Double)
-  | Real Double
-  | Rational Rational
-  | Integer Integer
-  deriving Eq
-
-instance Show LispNum where
-  show = showNum
-
-showNum :: LispNum -> String
-showNum n = case n of
-  Complex (a :+ b) -> "Complex " ++ "(" ++ show a ++ "+" ++ show b ++ "i" ++ ")"
-  Real a -> "Real " ++ show (a / 10 ^^ fromInteger (floor (logBase 10 a))) 
-            ++ "e" ++ show (floor (logBase 10 a))
-  Rational a -> "Rational " ++ "(" ++ show (numerator a) ++ "/" 
-                ++ show (denominator a) ++ ")"
-  Integer a -> "Integer " ++ show a
 
 parseLispNum :: Parser LispNum
 parseLispNum = do
