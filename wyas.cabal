@@ -23,6 +23,8 @@ executable wyas
                       GeneralParsers,
                       Primitives,
                       Evaluators,
+                      ErrorHandling,
+                      Datatypes,
                       Tests
     -- other-extensions:
     build-depends:    base,

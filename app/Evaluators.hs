@@ -1,28 +1,31 @@
 module Evaluators where
 
+import ErrorHandling
 import LispValParsers
 import NumberParsers
 import Primitives
 
-readExpr :: String -> LispVal
+readExpr :: String -> ThrowsError LispVal
 readExpr input =
   case parse parseExpr "lisp" input of
-    Left err -> String $ "No match: " ++ show err
-    Right val -> val
+    Left err -> throwError $ Parser err
+    Right val -> return val
 
-eval :: LispVal -> LispVal
+eval :: LispVal -> ThrowsError LispVal
 eval val =
   case val of
-    String _ -> val
-    Char _ -> val
-    Number _ -> val
-    Bool _ -> val
-    (List [Atom "quote", val]) -> val
-    List (Atom func:args) -> apply func $ map eval args
+    String _ -> return val
+    Char _ -> return val
+    Number _ -> return val
+    Bool _ -> return val
+    (List [Atom "quote", val]) -> return val
+    List (Atom func : args) -> mapM eval args >>= apply func
     Atom _ -> error "Atom evaluation hasn't been implemented yet"
-    DottedList _ _ -> error "DottedList evaluation hasn't been implemented yet"
+    DottedList _ _ -> undefined
     Vector _ -> error "Vector evaluation hasn't been implemented yet"
-    _ -> error $ "this failed: " ++ show val
+    badForm -> throwError $ BadSpecialForm "Unrecognized special form" badForm
 
-apply :: String -> [LispVal] -> LispVal
-apply func args = maybe (Bool False) ($ args) $ lookup func primOps
+apply :: String -> [LispVal] -> ThrowsError LispVal
+apply func args = maybe (throwError $ NotFunction "Unrecognized primitive function args" func)
+                        ($ args)
+                        (lookup func primitives)

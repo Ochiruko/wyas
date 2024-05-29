@@ -1,10 +1,10 @@
-module Primitives (primOps) where
+module Primitives (primitives) where
 
 import LispValParsers
 import NumberParsers
 
-primOps :: [(String, [LispVal] -> LispVal)]
-primOps =
+primitives :: [(String, [LispVal] -> ThrowsError LispVal)]
+primitives =
   [ ("+", lispAddition)
   , ("-", lispSubtraction)
   , ("*", lispMultiplication)
@@ -158,8 +158,9 @@ castRational (Number n) =
 castRational _ =
   error "only number types lower than or equal to rational can be cast into rational"
 
+-- TODO
 complexBinop ::
-     (Complex Double -> Complex Double -> Complex Double) -> [LispVal] -> LispVal
+     (Complex Double -> Complex Double -> Complex Double) -> [LispVal] -> ThrowsError LispVal
 complexBinop op args =
   Number
     $ let unwrap arg = unwrappedArg
@@ -167,7 +168,8 @@ complexBinop op args =
               Number (Complex unwrappedArg) = castComplex arg
        in Complex $ foldl1 op (map unwrap args)
 
-realBinop :: (Double -> Double -> Double) -> [LispVal] -> LispVal
+-- TODO #1
+realBinop :: (Double -> Double -> Double) -> [LispVal] -> ThrowsError LispVal
 realBinop op args =
   Number
     $ let unwrap arg = unwrappedArg
@@ -175,7 +177,8 @@ realBinop op args =
               Number (Real unwrappedArg) = castReal arg
        in Real $ foldl1 op (map unwrap args)
 
-rationalBinop :: (Rational -> Rational -> Rational) -> [LispVal] -> LispVal
+-- TODO
+rationalBinop :: (Rational -> Rational -> Rational) -> [LispVal] -> ThrowsError LispVal
 rationalBinop op args =
   Number
     $ let unwrap arg = unwrappedArg
@@ -183,20 +186,20 @@ rationalBinop op args =
               Number (Rational unwrappedArg) = castRational arg
        in Rational $ foldl1 op (map unwrap args)
 
-integerBinop :: (Integer -> Integer -> Integer) -> [LispVal] -> LispVal
+integerBinop :: (Integer -> Integer -> Integer) -> [LispVal] -> ThrowsError LispVal
 integerBinop op args =
   Number
     $ let unwrap (Number (Integer arg)) = arg
        in Integer $ foldl1 op (map unwrap args)
 
-questionUnop :: (LispVal -> Bool) -> [LispVal] -> LispVal
-questionUnop op [arg] = Bool $ op arg
+questionUnop :: (LispVal -> Bool) -> [LispVal] -> ThrowsError LispVal
+questionUnop op [arg] = return . Bool $ op arg
 questionUnop _ _ = error "invalid number of arguments"
 
-symbolToString :: [LispVal] -> LispVal
-symbolToString [Atom a] = String a
+symbolToString :: [LispVal] -> ThrowsError LispVal
+symbolToString [Atom a] = return (String a)
 symbolToString _ = error "symbol->string takes one symbol"
 
-stringToSymbol :: [LispVal] -> LispVal
-stringToSymbol [String s] = Atom s
+stringToSymbol :: [LispVal] -> ThrowsError LispVal
+stringToSymbol [String s] = return (Atom s)
 stringToSymbol _ = error "string->symbol takes one string"
