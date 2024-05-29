@@ -18,7 +18,19 @@ data LispNum
   | Real Double
   | Rational Rational
   | Integer Integer
-  deriving (Eq, Show)
+  deriving Eq
+
+instance Show LispNum where
+  show = showNum
+
+showNum :: LispNum -> String
+showNum n = case n of
+  Complex (a :+ b) -> "Complex " ++ "(" ++ show a ++ "+" ++ show b ++ "i" ++ ")"
+  Real a -> "Real " ++ show (a / 10 ^^ fromInteger (floor (logBase 10 a))) 
+            ++ "e" ++ show (floor (logBase 10 a))
+  Rational a -> "Rational " ++ "(" ++ show (numerator a) ++ "/" 
+                ++ show (denominator a) ++ ")"
+  Integer a -> "Integer " ++ show a
 
 parseLispNum :: Parser LispNum
 parseLispNum = do
@@ -78,16 +90,26 @@ parseReal r = do
         '-' -> negate num
 
 parseUReal :: Integer -> Parser LispNum
-parseUReal r = do
-  whl <- many digit
-  char '.'
-  dec <- many digit
-  let num :: Double
-      num = read $ "0" ++ whl ++ "." ++ dec ++ "0"
-  case (length whl + length dec, r) of
-    (0, _) -> fail "parsing error: '.' is an invalid UReal"
-    (_, 10) -> return . Real $ num
-    (_, _) -> fail "parsing error: decimal radices can only be 10"
+parseUReal r = try parseURealExp <|> parseURealDec
+  where
+    parseURealExp = do
+      num <- parseUInteger 10
+      char 'e'
+      (Integer exponent) <- parseInteger 10
+      case r of
+        10 -> return . Real $ toDouble num * 10 ^^ exponent
+        _ -> fail "parsing error: real radices can only be 10"
+    parseURealDec = do
+      whole <- many digit
+      char '.'
+      decimal <- many digit
+      (Integer exponent) <- (char 'e' >> parseInteger 10) <|> return (Integer 0)
+      let num = read $ "0" ++ whole ++ "." ++ decimal ++ "0"
+      case (length whole + length decimal, r) of
+        (0, _) -> fail "parsing error: '.' is an invalid UReal"
+        (_, 10) -> return . Real $ num * 10 ^^ exponent
+        (_, _) -> fail "parsing error: real radices can only be 10"
+        
 
 parseRational :: Integer -> Parser LispNum
 parseRational r = do

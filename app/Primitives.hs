@@ -12,6 +12,7 @@ primOps =
   , ("mod", lispMod)
   , ("quotient", lispQuotient)
   , ("remainder", lispRemainder)
+  , ("number?", questionUnop (anyP [isComplex,isReal,isRational,isInteger]))
   , ("complex?", questionUnop (anyP [isComplex,isReal,isRational,isInteger]))
   , ("real?", questionUnop (anyP [isReal,isRational,isInteger]))
   , ("rational?", questionUnop (anyP [isRational,isInteger]))
@@ -20,6 +21,10 @@ primOps =
   , ("char?", questionUnop isChar)
   , ("string?", questionUnop isString)
   , ("symbol?", questionUnop isSymbol)
+  , ("list?", questionUnop isList)
+  , ("vector?", questionUnop isVector)
+  , ("symbol->string", symbolToString)
+  , ("string->symbol", stringToSymbol)
   ]
 
 anyP :: [a -> Bool] -> a -> Bool
@@ -117,6 +122,10 @@ isList (List _) = True
 isList (DottedList _ _) = undefined
 isList _ = False
 
+isVector :: LispVal -> Bool
+isVector (Vector _) = True
+isVector _ = False
+
 castComplex :: LispVal -> LispVal
 castComplex (Number n) =
   Number
@@ -183,3 +192,11 @@ integerBinop op args =
 questionUnop :: (LispVal -> Bool) -> [LispVal] -> LispVal
 questionUnop op [arg] = Bool $ op arg
 questionUnop _ _ = error "invalid number of arguments"
+
+symbolToString :: [LispVal] -> LispVal
+symbolToString [Atom a] = String a
+symbolToString _ = error "symbol->string takes one symbol"
+
+stringToSymbol :: [LispVal] -> LispVal
+stringToSymbol [String s] = Atom s
+stringToSymbol _ = error "string->symbol takes one string"
