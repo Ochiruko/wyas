@@ -2,6 +2,9 @@ module Primitives (primitives) where
 
 import LispValParsers
 import NumberParsers
+import ErrorHandling
+
+import Data.Functor
 
 primitives :: [(String, [LispVal] -> ThrowsError LispVal)]
 primitives =
@@ -33,14 +36,14 @@ anyP ps = or . (ps <*>) . (:[])
 allP :: [a -> Bool] -> a -> Bool
 allP ps = and . (ps <*>) . (:[])
 
-lispAddition :: [LispVal] -> LispVal
+lispAddition :: [LispVal] -> ThrowsError LispVal
 lispAddition args
   | any isComplex args = complexBinop (+) args
   | any isReal args = realBinop (+) args
   | any isRational args = rationalBinop (+) args
   | otherwise = integerBinop (+) args
 
-lispSubtraction :: [LispVal] -> LispVal
+lispSubtraction :: [LispVal] -> ThrowsError LispVal
 lispSubtraction [x]
   | isComplex x = lispSubtraction [Number (Complex 0), x]
   | isReal x = lispSubtraction [Number (Real 0), x]
@@ -52,35 +55,37 @@ lispSubtraction args
   | any isRational args = rationalBinop (-) args
   | otherwise = integerBinop (-) args
 
-lispMultiplication :: [LispVal] -> LispVal
+lispMultiplication :: [LispVal] -> ThrowsError LispVal
 lispMultiplication args
   | any isComplex args = complexBinop (*) args
   | any isReal args = realBinop (*) args
   | any isRational args = rationalBinop (*) args
   | otherwise = integerBinop (*) args
 
-lispDivision :: [LispVal] -> LispVal
+lispDivision :: [LispVal] -> ThrowsError LispVal
 lispDivision [x]
   | isComplex x = lispDivision [Number (Complex 1), x]
   | isReal x = lispDivision [Number (Real 1), x]
   | isRational x = lispDivision [Number (Rational 1), x]
+lispDivision [] = throwError $ NumArgs 1 []
 lispDivision args
   | any isComplex args = complexBinop (/) args
   | any isReal args = realBinop (/) args
   | any isRational args = rationalBinop (/) args
-  | otherwise = lispDivision (castRational <$> args)
+  | any isInteger args = mapM castRational args >>= lispDivision
+  | otherwise = throwError $ TypeMismatch "Number" (head args)
 
-lispMod :: [LispVal] -> LispVal
+lispMod :: [LispVal] -> ThrowsError LispVal
 lispMod args
   | all isInteger args = integerBinop mod args
   | otherwise = error "type error: mod takes only integers"
 
-lispQuotient :: [LispVal] -> LispVal
+lispQuotient :: [LispVal] -> ThrowsError LispVal
 lispQuotient args
   | all isInteger args = integerBinop quot args
   | otherwise = error "type error: quotient takes only integers"
 
-lispRemainder :: [LispVal] -> LispVal
+lispRemainder :: [LispVal] -> ThrowsError LispVal
 lispRemainder args
   | all isInteger args = integerBinop rem args
   | otherwise = error "type error: remainder takes only integers"
@@ -126,80 +131,67 @@ isVector :: LispVal -> Bool
 isVector (Vector _) = True
 isVector _ = False
 
-castComplex :: LispVal -> LispVal
+castComplex :: LispVal -> ThrowsError LispVal
 castComplex (Number n) =
-  Number
+  return . Number
     $ case n of
         Complex c -> Complex c
         Real r -> Complex $ r :+ 0
         Rational r -> Complex $ fromRational r :+ 0
         Integer x -> Complex $ fromInteger x :+ 0
-castComplex _ = error "only number types can be cast into complex"
+castComplex x = throwError $ TypeMismatch "Number" x
 
-castReal :: LispVal -> LispVal
+castReal :: LispVal -> ThrowsError LispVal
 castReal (Number n) =
-  Number
-    $ case n of
-        Complex _ -> error "Complex numbers are not Real"
-        Real r -> Real r
-        Rational r -> Real $ fromRational r
-        Integer x -> Real $ fromInteger x
-castReal _ =
-  error "only number types lower than or equal to real can be cast into real"
+  case n of
+    Complex x -> throwError $ TypeMismatch "(Real | Rational | Integer)" (Number n)
+    Real r -> return . Number . Real $ r
+    Rational r -> return . Number . Real $ fromRational r
+    Integer x -> return . Number . Real $ fromInteger x
+castReal x = throwError $ TypeMismatch "(Real | Rational | Integer)" x
 
-castRational :: LispVal -> LispVal
+castRational :: LispVal -> ThrowsError LispVal
 castRational (Number n) =
-  Number
-    $ case n of
-        Complex _ -> error "Complex numbers are not Rational"
-        Real _ -> error "Real numbers are not Rational"
-        Rational r -> Rational r
-        Integer x -> Rational $ x % 1
-castRational _ =
-  error "only number types lower than or equal to rational can be cast into rational"
+  case n of
+    Rational r -> return . Number . Rational $ r
+    Integer x -> return .Number . Rational $ x % 1
+    x -> throwError $ TypeMismatch "(Rational | Integer)" (Number x)
+castRational x = throwError $ TypeMismatch "(Rational | Integer)" x
 
--- TODO
-complexBinop ::
-     (Complex Double -> Complex Double -> Complex Double) -> [LispVal] -> ThrowsError LispVal
+complexBinop :: (Complex Double -> Complex Double -> Complex Double) 
+             -> [LispVal] 
+             -> ThrowsError LispVal
 complexBinop op args =
-  Number
-    $ let unwrap arg = unwrappedArg
-            where
-              Number (Complex unwrappedArg) = castComplex arg
-       in Complex $ foldl1 op (map unwrap args)
+  let unwrap arg = castComplex arg >>= \(Number (Complex x)) -> return x
+   in Number . Complex . foldl1 op <$> mapM unwrap args
 
--- TODO #1
 realBinop :: (Double -> Double -> Double) -> [LispVal] -> ThrowsError LispVal
 realBinop op args =
-  Number
-    $ let unwrap arg = unwrappedArg
-            where
-              Number (Real unwrappedArg) = castReal arg
-       in Real $ foldl1 op (map unwrap args)
+  let unwrap arg = castReal arg >>= \(Number (Real x)) -> return x
+   in Number . Real . foldl1 op <$> mapM unwrap args
 
--- TODO
 rationalBinop :: (Rational -> Rational -> Rational) -> [LispVal] -> ThrowsError LispVal
 rationalBinop op args =
-  Number
-    $ let unwrap arg = unwrappedArg
-            where
-              Number (Rational unwrappedArg) = castRational arg
-       in Rational $ foldl1 op (map unwrap args)
+  let unwrap arg = castRational arg >>= \(Number (Rational x)) -> return x
+   in Number . Rational . foldl1 op <$> mapM unwrap args
 
 integerBinop :: (Integer -> Integer -> Integer) -> [LispVal] -> ThrowsError LispVal
 integerBinop op args =
-  Number
-    $ let unwrap (Number (Integer arg)) = arg
-       in Integer $ foldl1 op (map unwrap args)
+  let unwrap :: LispVal -> ThrowsError Integer
+      unwrap (Number (Integer arg)) = return arg
+      unwrap x = throwError $ TypeMismatch "Integer" x
+   in Number . Integer . foldl1 op <$> mapM unwrap args
 
 questionUnop :: (LispVal -> Bool) -> [LispVal] -> ThrowsError LispVal
 questionUnop op [arg] = return . Bool $ op arg
-questionUnop _ _ = error "invalid number of arguments"
+questionUnop _ xs = throwError $ NumArgs 1 xs
 
 symbolToString :: [LispVal] -> ThrowsError LispVal
-symbolToString [Atom a] = return (String a)
-symbolToString _ = error "symbol->string takes one symbol"
+symbolToString [Atom a] = return $ String a
+symbolToString [x] = throwError $ TypeMismatch "Symbol" x
+symbolToString xs = throwError $ NumArgs 1 xs
 
 stringToSymbol :: [LispVal] -> ThrowsError LispVal
 stringToSymbol [String s] = return (Atom s)
-stringToSymbol _ = error "string->symbol takes one string"
+stringToSymbol [x] = throwError $ TypeMismatch "String" x
+stringToSymbol xs = throwError $ NumArgs 1 xs
