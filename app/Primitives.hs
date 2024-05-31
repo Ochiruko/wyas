@@ -4,6 +4,7 @@ import LispValParsers
 import NumberParsers
 import ErrorHandling
 
+import Control.Monad
 import Data.Functor
 
 primitives :: [(String, [LispVal] -> ThrowsError LispVal)]
@@ -28,6 +29,19 @@ primitives =
   , ("vector?", questionUnop isVector)
   , ("symbol->string", symbolToString)
   , ("string->symbol", stringToSymbol)
+  , ("=", lispEq)
+  , ("<", lispLT)
+  , (">", lispGT)
+  , ("/=", lispUneq)
+  , (">=", lispGTE)
+  , ("<=", lispLTE)
+  , ("&&", boolBoolBinop (&&))
+  , ("||", boolBoolBinop (||))
+  , ("string=?", strBoolBinop (==))
+  , ("string<?", strBoolBinop (<))
+  , ("string>?", strBoolBinop (>))
+  , ("string<=?", strBoolBinop (<=))
+  , ("string>=?", strBoolBinop (>=))
   ]
 
 anyP :: [a -> Bool] -> a -> Bool
@@ -89,6 +103,42 @@ lispRemainder :: [LispVal] -> ThrowsError LispVal
 lispRemainder args
   | all isInteger args = integerBinop rem args
   | otherwise = error "type error: remainder takes only integers"
+
+lispEq :: [LispVal] -> ThrowsError LispVal
+lispEq xs | any isComplex xs = complexBoolBinop (==) xs
+          | any isReal xs = realBoolBinop (==) xs
+          | any isRational xs = rationalBoolBinop (==) xs
+          | otherwise = integerBoolBinop (==) xs
+
+lispUneq :: [LispVal] -> ThrowsError LispVal
+lispUneq xs | any isComplex xs = complexBoolBinop (/=) xs
+            | any isReal xs = realBoolBinop (/=) xs
+            | any isRational xs = rationalBoolBinop (/=) xs
+            | otherwise = integerBoolBinop (/=) xs
+
+lispLT :: [LispVal] -> ThrowsError LispVal
+lispLT xs | any isComplex xs = complexBoolBinop (\x y -> magnitude x < magnitude y) xs
+          | any isReal xs = realBoolBinop (<) xs
+          | any isRational xs = rationalBoolBinop (<) xs
+          | otherwise = integerBoolBinop (<) xs
+
+lispLTE :: [LispVal] -> ThrowsError LispVal
+lispLTE xs | any isComplex xs = complexBoolBinop (\x y -> magnitude x <= magnitude y) xs
+           | any isReal xs = realBoolBinop (<=) xs
+           | any isRational xs = rationalBoolBinop (<=) xs
+           | otherwise = integerBoolBinop (<=) xs
+
+lispGT :: [LispVal] -> ThrowsError LispVal
+lispGT xs | any isComplex xs = complexBoolBinop (\x y -> magnitude x > magnitude y) xs
+          | any isReal xs = realBoolBinop (>) xs
+          | any isRational xs = rationalBoolBinop (>) xs
+          | otherwise = integerBoolBinop (>) xs
+
+lispGTE :: [LispVal] -> ThrowsError LispVal
+lispGTE xs | any isComplex xs = complexBoolBinop (\x y -> magnitude x >= magnitude y) xs
+           | any isReal xs = realBoolBinop (>=) xs
+           | any isRational xs = rationalBoolBinop (>=) xs
+           | otherwise = integerBoolBinop (>=) xs
 
 isComplex :: LispVal -> Bool
 isComplex (Number (Complex _)) = True
@@ -162,17 +212,17 @@ complexBinop :: (Complex Double -> Complex Double -> Complex Double)
              -> [LispVal] 
              -> ThrowsError LispVal
 complexBinop op args =
-  let unwrap arg = castComplex arg >>= \(Number (Complex x)) -> return x
+  let unwrap arg = castComplex arg >>= unpackComplex
    in Number . Complex . foldl1 op <$> mapM unwrap args
 
 realBinop :: (Double -> Double -> Double) -> [LispVal] -> ThrowsError LispVal
 realBinop op args =
-  let unwrap arg = castReal arg >>= \(Number (Real x)) -> return x
+  let unwrap arg = castReal arg >>= unpackReal
    in Number . Real . foldl1 op <$> mapM unwrap args
 
 rationalBinop :: (Rational -> Rational -> Rational) -> [LispVal] -> ThrowsError LispVal
 rationalBinop op args =
-  let unwrap arg = castRational arg >>= \(Number (Rational x)) -> return x
+  let unwrap arg = castRational arg >>= unpackRational
    in Number . Rational . foldl1 op <$> mapM unwrap args
 
 integerBinop :: (Integer -> Integer -> Integer) -> [LispVal] -> ThrowsError LispVal
@@ -181,6 +231,54 @@ integerBinop op args =
       unwrap (Number (Integer arg)) = return arg
       unwrap x = throwError $ TypeMismatch "Integer" x
    in Number . Integer . foldl1 op <$> mapM unwrap args
+
+unpackComplex :: LispVal -> ThrowsError (Complex Double)
+unpackComplex (Number (Complex c)) = return c
+unpackComplex x = throwError $ TypeMismatch "Complex" x
+
+unpackReal :: LispVal -> ThrowsError Double
+unpackReal (Number (Real r)) = return r
+unpackReal x = throwError $ TypeMismatch "Real" x
+
+unpackRational :: LispVal -> ThrowsError Rational
+unpackRational (Number (Rational r)) = return r
+unpackRational x = throwError $ TypeMismatch "Rational" x
+
+unpackInteger :: LispVal -> ThrowsError Integer
+unpackInteger (Number (Integer i)) = return i
+unpackInteger x = throwError $ TypeMismatch "Integer" x
+
+unpackBool :: LispVal -> ThrowsError Bool
+unpackBool (Bool b) = return b
+unpackBool x = throwError $ TypeMismatch "Bool" x
+
+unpackString :: LispVal -> ThrowsError String
+unpackString (String s) = return s
+unpackString x = throwError $ TypeMismatch "String" x
+
+boolBinop :: (LispVal -> ThrowsError a) -> (a -> a -> Bool) -> [LispVal] -> ThrowsError LispVal
+boolBinop unpacker op [a1, a2] = do left <- unpacker a1
+                                    right <- unpacker a2
+                                    return . Bool $ op left right
+boolBinop _ _ xs = throwError $ NumArgs 2 xs
+
+complexBoolBinop :: (Complex Double -> Complex Double -> Bool) -> [LispVal] -> ThrowsError LispVal
+complexBoolBinop = boolBinop (castComplex >=> unpackComplex) 
+
+realBoolBinop :: (Double -> Double -> Bool) -> [LispVal] -> ThrowsError LispVal
+realBoolBinop = boolBinop (castReal >=> unpackReal)
+
+rationalBoolBinop :: (Rational -> Rational -> Bool) -> [LispVal] -> ThrowsError LispVal
+rationalBoolBinop = boolBinop (castRational >=> unpackRational)
+
+integerBoolBinop :: (Integer -> Integer -> Bool) -> [LispVal] -> ThrowsError LispVal
+integerBoolBinop = boolBinop unpackInteger
+
+strBoolBinop :: (String -> String -> Bool) -> [LispVal] -> ThrowsError LispVal
+strBoolBinop = boolBinop unpackString
+
+boolBoolBinop :: (Bool -> Bool -> Bool) -> [LispVal] -> ThrowsError LispVal
+boolBoolBinop = boolBinop unpackBool
 
 questionUnop :: (LispVal -> Bool) -> [LispVal] -> ThrowsError LispVal
 questionUnop op [arg] = return . Bool $ op arg
