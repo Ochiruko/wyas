@@ -1,0 +1,2 @@
+:set -Wnoeverything
+:set editor nvim

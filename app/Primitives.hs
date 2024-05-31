@@ -1,5 +1,7 @@
 module Primitives (primitives) where
 
+{-# LANGUAGE ExistentialQuantification #-}
+
 import LispValParsers
 import NumberParsers
 import ErrorHandling
@@ -46,6 +48,7 @@ primitives =
   , ("cdr", cdr)
   , ("cons", cons)
   , ("eqv?", eqv)
+  , ("equal?", equal)
   ]
 
 anyP :: [a -> Bool] -> a -> Bool
@@ -110,15 +113,15 @@ lispRemainder args
 
 numEq :: [LispVal] -> ThrowsError LispVal
 numEq xs | any isComplex xs = complexBoolBinop (==) xs
-          | any isReal xs = realBoolBinop (==) xs
-          | any isRational xs = rationalBoolBinop (==) xs
-          | otherwise = integerBoolBinop (==) xs
+         | any isReal xs = realBoolBinop (==) xs
+         | any isRational xs = rationalBoolBinop (==) xs
+         | otherwise = integerBoolBinop (==) xs
 
 numUneq :: [LispVal] -> ThrowsError LispVal
 numUneq xs | any isComplex xs = complexBoolBinop (/=) xs
-            | any isReal xs = realBoolBinop (/=) xs
-            | any isRational xs = rationalBoolBinop (/=) xs
-            | otherwise = integerBoolBinop (/=) xs
+           | any isReal xs = realBoolBinop (/=) xs
+           | any isRational xs = rationalBoolBinop (/=) xs
+           | otherwise = integerBoolBinop (/=) xs
 
 lispLT :: [LispVal] -> ThrowsError LispVal
 lispLT xs | any isComplex xs = complexBoolBinop (\x y -> magnitude x < magnitude y) xs
@@ -258,7 +261,12 @@ unpackBool x = throwError $ TypeMismatch "Bool" x
 
 unpackString :: LispVal -> ThrowsError String
 unpackString (String s) = return s
-unpackString x = throwError $ TypeMismatch "String" x
+unpackString (Number c@(Complex _)) = return . show $ c
+unpackString (Number r@(Real_)) = return . show $ r
+unpackString (Number r@(Rational _)) = return . show $ r
+unpackString (Number i@(Integer _)) = return . show $ i
+unpackString (Bool s) = return . show $ s
+unpackString notString = throwError $ TypeMismatch "String" notString
 
 boolBinop :: (LispVal -> ThrowsError a) -> (a -> a -> Bool) -> [LispVal] -> ThrowsError LispVal
 boolBinop unpacker op [a1, a2] = do left <- unpacker a1
@@ -306,7 +314,7 @@ car badArgList = throwError $ NumArgs 1 badArgList
 
 -- DottedLists are just improper lists, where the last element is cons-ed to the post-dot part instead of '().
 cdr :: [LispVal] -> ThrowsError LispVal
-cdr [List (x:xs)] = return xs
+cdr [List (x:xs)] = return $ List xs
 cdr [DottedList [_] x] = return x
 cdr [DottedList (_:xs) x] = return $ DottedList xs x
 cdr [badArg] = throwError $ TypeMismatch "pair" badArg
@@ -320,13 +328,24 @@ cons badArgList = throwError $ NumArgs 2 badArgList
 
 eqv :: [LispVal] -> ThrowsError LispVal
 eqv [Bool arg1, Bool arg2] = return . Bool $ arg1 == arg2
-eqv [arg1@(Number _), arg2@(Number _)] = numEq arg1 arg2
+eqv [arg1@(Number _), arg2@(Number _)] = numEq [arg1, arg2]
 eqv [String arg1, String arg2] = return . Bool $ arg1 == arg2
 eqv [Atom arg1, Atom arg2] = return . Bool $ arg1 == arg2
-eqv [DottedList xs x, DottedList ys y] = (xs, x) == eqv [List $ xs ++ [x], List $ ys ++ [y]]
+eqv [DottedList xs x, DottedList ys y] = eqv [List $ xs ++ [x], List $ ys ++ [y]]
 eqv [List arg1, List arg2] = return . Bool $ (length arg1 == length arg2) && all eqvPair (zip arg1 arg2)
   where eqvPair (x1, x2) = case eqv [x1, x2] of
                                 Left err -> False -- How the heck would you get this?
                                 Right (Bool val) -> val
-eqv [_,_] = Return . Bool $ False
-eqv badArgList = throwError $ numArgs 2 badArgList
+eqv [_,_] = return . Bool $ False
+eqv badArgList = throwError $ NumArgs 2 badArgList
+
+data Unpacker = forall a. Eq a => AnyUnpacker (LispVal -> ThrowsError a)
+
+unpackEquals :: LispVal -> LispVal -> Unpacker -> ThrowsError Bool
+unpackEquals arg1 arg2 (AnyUnpacker unpacker) = 
+
+equal :: [LispVal] -> ThrowsError LispVal
+equal [arg1, arg2] = do
+  primitiveEquals <- liftM or $ mapM (unpackEquals arg1 arg2)
+                     [ AnyUnpacker unpackComplex, AnyUnpacker unpack
+                     , AnyUnpacker unpackStr, AnyUnpacker unpackBool
