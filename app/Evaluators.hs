@@ -19,6 +19,11 @@ eval val =
     Number _ -> return val
     Bool _ -> return val
     (List [Atom "quote", val]) -> return val
+    List [Atom "if", pred, conseq, alt] -> do
+      result <- eval pred
+      case result of
+        Bool False -> eval alt   -- evaluated only if pred is false
+        Bool True -> eval conseq -- evaluated only if pred is true
     List (Atom func : args) -> mapM eval args >>= apply func
     Atom _ -> error "Atom evaluation hasn't been implemented yet"
     DottedList _ _ -> undefined
