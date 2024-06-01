@@ -1,6 +1,6 @@
-module Primitives (primitives) where
-
 {-# LANGUAGE ExistentialQuantification #-}
+
+module Primitives (primitives) where
 
 import LispValParsers
 import NumberParsers
@@ -262,7 +262,7 @@ unpackBool x = throwError $ TypeMismatch "Bool" x
 unpackString :: LispVal -> ThrowsError String
 unpackString (String s) = return s
 unpackString (Number c@(Complex _)) = return . show $ c
-unpackString (Number r@(Real_)) = return . show $ r
+unpackString (Number r@(Real _)) = return . show $ r
 unpackString (Number r@(Rational _)) = return . show $ r
 unpackString (Number i@(Integer _)) = return . show $ i
 unpackString (Bool s) = return . show $ s
@@ -342,10 +342,18 @@ eqv badArgList = throwError $ NumArgs 2 badArgList
 data Unpacker = forall a. Eq a => AnyUnpacker (LispVal -> ThrowsError a)
 
 unpackEquals :: LispVal -> LispVal -> Unpacker -> ThrowsError Bool
-unpackEquals arg1 arg2 (AnyUnpacker unpacker) = 
+unpackEquals arg1 arg2 (AnyUnpacker unpacker) =  -- N.B. the same unpacker is used
+    do unpacked1 <- unpacker arg1
+       unpacked2 <- unpacker arg2
+       return $ unpacked1 == unpacked2
+    `catchError` const (return False)
 
 equal :: [LispVal] -> ThrowsError LispVal
 equal [arg1, arg2] = do
-  primitiveEquals <- liftM or $ mapM (unpackEquals arg1 arg2)
-                     [ AnyUnpacker unpackComplex, AnyUnpacker unpack
-                     , AnyUnpacker unpackStr, AnyUnpacker unpackBool
+  primitiveEquals <- or <$> mapM (unpackEquals arg1 arg2)
+                     [ AnyUnpacker unpackComplex, AnyUnpacker unpackReal
+                     , AnyUnpacker unpackRational, AnyUnpacker unpackInteger
+                     , AnyUnpacker unpackString, AnyUnpacker unpackBool]
+  eqvEquals <- eqv [arg1, arg2]
+  return . Bool $ (primitiveEquals || let (Bool x) = eqvEquals in x)
+equal badArgList = throwError $ NumArgs 2 badArgList
